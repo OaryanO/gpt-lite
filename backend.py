@@ -104,8 +104,10 @@ def login_user(username, password):
 
     if not row:
         return None
-
-    if bcrypt.checkpw(password.encode(), row[0]):
+    
+    stored_hash = bytes(row[0])
+    
+    if bcrypt.checkpw(password.encode(), stored_hash):
         return create_token(username)
 
     return None
