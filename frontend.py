@@ -196,20 +196,33 @@
 
 
 import streamlit as st
-from backend import *
+from backend import (
+    chatbot,
+    retrieve_user_threads,
+    add_thread_for_user,
+    login_user,
+    register_user,
+    reset_password,
+    verify_token,
+    delete_thread,
+    rename_thread,
+)
 from langchain_core.messages import HumanMessage
 import uuid
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
+# ---------------- AUTH CHECK ----------------
 if "token" in st.session_state:
     username = verify_token(st.session_state["token"])
     if username:
         st.session_state.logged_in = True
         st.session_state.username = username
+    else:
+        st.session_state.clear()
 
-# AUTH SCREEN
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+# ---------------- AUTH SCREEN ----------------
 if not st.session_state.logged_in:
     st.title("LangGraph Chatbot")
 
@@ -258,6 +271,7 @@ if not st.session_state.logged_in:
 
     st.stop()
 
+# ---------------- UTILITIES ----------------
 def generate_thread_id():
     return str(uuid.uuid4())
 
@@ -267,16 +281,30 @@ def reset_chat():
     st.session_state["user_msg_count"] = 0
     st.session_state.pop("thread_initialized", None)
 
+def load_conversation(thread_id):
+    state = chatbot.get_state(
+        config={"configurable": {"thread_id": thread_id}}
+    )
+    return state.values.get("messages", [])
+
+# ---------------- SESSION SETUP ----------------
 if "thread_id" not in st.session_state:
     reset_chat()
+
+if "message_history" not in st.session_state:
+    st.session_state["message_history"] = []
 
 if "chat_threads" not in st.session_state:
     st.session_state["chat_threads"] = retrieve_user_threads(
         st.session_state.username
     )
 
-# SIDEBAR
+# ---------------- SIDEBAR ----------------
 st.sidebar.title(f"Welcome {st.session_state.username}")
+
+if st.sidebar.button("Logout"):
+    st.session_state.clear()
+    st.rerun()
 
 if st.sidebar.button("New Chat"):
     reset_chat()
@@ -285,17 +313,31 @@ st.sidebar.header("My Conversations")
 search_query = st.sidebar.text_input("Search conversations")
 
 threads = st.session_state["chat_threads"]
+
 if search_query:
-    threads = [(tid, t) for tid, t in threads if search_query.lower() in t.lower()]
+    threads = [
+        (tid, t)
+        for tid, t in threads
+        if search_query.lower() in t.lower()
+    ]
 
 for thread_id, title in threads[::-1]:
     if st.sidebar.button(title):
         st.session_state["thread_id"] = thread_id
-        st.session_state["message_history"] = []
+        messages = load_conversation(thread_id)
+
+        temp = []
+        for msg in messages:
+            role = "assistant"
+            if isinstance(msg, HumanMessage):
+                role = "user"
+            temp.append({"role": role, "content": msg.content})
+
+        st.session_state["message_history"] = temp
         st.session_state["thread_initialized"] = True
 
-# CHAT
-for message in st.session_state.get("message_history", []):
+# ---------------- CHAT UI ----------------
+for message in st.session_state["message_history"]:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
@@ -308,6 +350,7 @@ if user_input:
 
     st.session_state["user_msg_count"] += 1
 
+    # show user message instantly
     st.session_state["message_history"].append(
         {"role": "user", "content": user_input}
     )
@@ -315,12 +358,14 @@ if user_input:
     with st.chat_message("user"):
         st.write(user_input)
 
+    # temporary sidebar entry
     if "thread_initialized" not in st.session_state:
         st.session_state["chat_threads"].append(
             (st.session_state["thread_id"], "Untitled Chat")
         )
         st.session_state["thread_initialized"] = True
 
+    # assistant response
     with st.chat_message("assistant"):
         placeholder = st.empty()
         placeholder.markdown("💬 *Assistant is typing...*")
@@ -342,6 +387,7 @@ if user_input:
 
     msg_count = st.session_state["user_msg_count"]
 
+    # title logic
     if msg_count == 1:
         add_thread_for_user(
             st.session_state.username,
