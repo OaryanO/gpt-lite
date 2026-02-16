@@ -17,21 +17,21 @@
 # SECRET_KEY = os.getenv("JWT_SECRET")
 # DATABASE_URL = os.getenv("DATABASE_URL")
 
-# # ---------------- LLM ----------------
 # llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
 
-# # ---------------- SQLITE (LangGraph memory) ----------------
+# # ---------------- SQLITE MEMORY ----------------
 # memory_conn = sqlite3.connect("memory.db", check_same_thread=False)
 # checkpointer = SqliteSaver(conn=memory_conn)
 
-# # ---------------- POSTGRES (Supabase) ----------------
+# # ---------------- POSTGRES ----------------
 # pg_conn = psycopg2.connect(DATABASE_URL)
 # pg_cursor = pg_conn.cursor()
 
 # pg_cursor.execute("""
 # CREATE TABLE IF NOT EXISTS users (
 #     username TEXT PRIMARY KEY,
-#     password BYTEA
+#     password BYTEA,
+#     security_answer TEXT
 # )
 # """)
 
@@ -82,12 +82,14 @@
 #         return None
 
 # # ---------------- AUTH ----------------
-# def register_user(username, password):
+# def register_user(username, password, security_answer):
 #     try:
 #         hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+#         normalized_answer = security_answer.strip().lower()
+
 #         pg_cursor.execute(
-#             "INSERT INTO users (username, password) VALUES (%s, %s)",
-#             (username, hashed),
+#             "INSERT INTO users (username, password, security_answer) VALUES (%s, %s, %s)",
+#             (username, hashed, normalized_answer),
 #         )
 #         pg_conn.commit()
 #         return True
@@ -104,15 +106,38 @@
 
 #     if not row:
 #         return None
-    
+
 #     stored_hash = bytes(row[0])
-    
+
 #     if bcrypt.checkpw(password.encode(), stored_hash):
 #         return create_token(username)
 
 #     return None
 
-# # ---------------- THREAD MANAGEMENT ----------------
+# def reset_password(username, security_answer, new_password):
+#     pg_cursor.execute(
+#         "SELECT security_answer FROM users WHERE username=%s",
+#         (username,),
+#     )
+#     row = pg_cursor.fetchone()
+
+#     if not row:
+#         return False
+
+#     if row[0] != security_answer.strip().lower():
+#         return False
+
+#     new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt())
+
+#     pg_cursor.execute(
+#         "UPDATE users SET password=%s WHERE username=%s",
+#         (new_hash, username),
+#     )
+#     pg_conn.commit()
+
+#     return True
+
+# # ---------------- THREADS ----------------
 # def add_thread_for_user(username, thread_id, first_message):
 #     title = generate_thread_title(first_message)
 #     pg_cursor.execute(
@@ -126,8 +151,7 @@
 #         "SELECT thread_id, title FROM user_threads WHERE username=%s",
 #         (username,),
 #     )
-
-
+#     return pg_cursor.fetchall()
 
 
 from langgraph.graph import StateGraph, START, END
@@ -151,11 +175,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
 
-# ---------------- SQLITE MEMORY ----------------
 memory_conn = sqlite3.connect("memory.db", check_same_thread=False)
 checkpointer = SqliteSaver(conn=memory_conn)
 
-# ---------------- POSTGRES ----------------
 pg_conn = psycopg2.connect(DATABASE_URL)
 pg_cursor = pg_conn.cursor()
 
@@ -170,14 +192,13 @@ CREATE TABLE IF NOT EXISTS users (
 pg_cursor.execute("""
 CREATE TABLE IF NOT EXISTS user_threads (
     username TEXT,
-    thread_id TEXT,
+    thread_id TEXT PRIMARY KEY,
     title TEXT
 )
 """)
 
 pg_conn.commit()
 
-# ---------------- STATE ----------------
 class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
@@ -190,7 +211,6 @@ def generate_thread_title(first_message):
     response = llm.invoke(prompt)
     return response.content.strip()
 
-# ---------------- GRAPH ----------------
 graph = StateGraph(ChatState)
 graph.add_node("chat_node", chat_node)
 graph.add_edge(START, "chat_node")
@@ -198,7 +218,6 @@ graph.add_edge("chat_node", END)
 
 chatbot = graph.compile(checkpointer=checkpointer)
 
-# ---------------- JWT ----------------
 def create_token(username):
     payload = {
         "username": username,
@@ -213,7 +232,6 @@ def verify_token(token):
     except:
         return None
 
-# ---------------- AUTH ----------------
 def register_user(username, password, security_answer):
     try:
         hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
@@ -240,7 +258,6 @@ def login_user(username, password):
         return None
 
     stored_hash = bytes(row[0])
-
     if bcrypt.checkpw(password.encode(), stored_hash):
         return create_token(username)
 
@@ -266,10 +283,8 @@ def reset_password(username, security_answer, new_password):
         (new_hash, username),
     )
     pg_conn.commit()
-
     return True
 
-# ---------------- THREADS ----------------
 def add_thread_for_user(username, thread_id, first_message):
     title = generate_thread_title(first_message)
     pg_cursor.execute(
@@ -285,4 +300,16 @@ def retrieve_user_threads(username):
     )
     return pg_cursor.fetchall()
 
-#     return pg_cursor.fetchall()
+def delete_thread(username, thread_id):
+    pg_cursor.execute(
+        "DELETE FROM user_threads WHERE username=%s AND thread_id=%s",
+        (username, thread_id),
+    )
+    pg_conn.commit()
+
+def rename_thread(username, thread_id, new_title):
+    pg_cursor.execute(
+        "UPDATE user_threads SET title=%s WHERE username=%s AND thread_id=%s",
+        (new_title.strip(), username, thread_id),
+    )
+    pg_conn.commit()
