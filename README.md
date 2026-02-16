@@ -17,7 +17,7 @@ This application allows multiple users to:
 - Rename and delete conversations
 - Search past conversations
 
-The chatbot uses **LangGraph for stateful execution** and **Groq Llama‑3‑70B** for fast LLM responses.
+The chatbot uses **LangGraph for stateful execution** and **Groq llama-3.1-8b-instant** for fast LLM responses.
 
 ---
 
