@@ -381,9 +381,8 @@ checkpointer.setup()
 # ---------------- POSTGRES CONNECTION (AUTH + THREADS) ----------------
 # pg_conn = psycopg.connect(DATABASE_URL)
 # pg_cursor = pg_conn.cursor()
-pg_conn = psycopg.connect(
-    DATABASE_URL # disable server-side prepared statements
-)
+pg_conn = psycopg.connect(DATABASE_URL)
+pg_conn.autocommit = True
 pg_cursor = pg_conn.cursor()
 
 pg_cursor.execute("""
