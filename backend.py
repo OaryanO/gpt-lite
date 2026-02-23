@@ -356,8 +356,12 @@ llm = ChatGroq(
 # ---------------- LANGGRAPH POSTGRES CHECKPOINTER ----------------
 # IMPORTANT: Correct initialization for latest LangGraph versions
 # from langgraph.checkpoint.postgres import PostgresSaver
-_postgres_cm = PostgresSaver.from_conn_string(DATABASE_URL)
-checkpointer = _postgres_cm.__enter__()
+from langgraph.checkpoint.postgres import PostgresSaver
+
+checkpointer = PostgresSaver.from_conn_string(DATABASE_URL)
+
+# Create required tables if they don't exist
+checkpointer.setup()
 # ---------------- POSTGRES CONNECTION (AUTH + THREADS) ----------------
 pg_conn = psycopg.connect(DATABASE_URL)
 pg_cursor = pg_conn.cursor()
