@@ -479,18 +479,18 @@ if not st.session_state.logged_in:
                 st.rerun()
 
     else:
-    security_answer = st.text_input("Security Answer")
-    new_password = st.text_input("New Password", type="password")
-
-    if st.button("Reset Password"):
-        success = reset_password(username, security_answer, new_password)
-
-        if success:
-            st.success("Password reset successful. Please login.")
-            st.session_state.auth_mode = "Login"
-            st.rerun()
-        else:
-            st.error("Invalid username or security answer.")
+        security_answer = st.text_input("Security Answer")
+        new_password = st.text_input("New Password", type="password")
+    
+        if st.button("Reset Password"):
+            success = reset_password(username, security_answer, new_password)
+    
+            if success:
+                st.success("Password reset successful. Please login.")
+                st.session_state.auth_mode = "Login"
+                st.rerun()
+            else:
+                st.error("Invalid username or security answer.")
 
     st.stop()
 
