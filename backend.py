@@ -324,7 +324,7 @@ from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
 from langchain_core.messages import BaseMessage
 from langchain_groq import ChatGroq
-from langgraph.checkpoint.postgres import PostgresSaver
+# from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
 import bcrypt
@@ -358,9 +358,13 @@ llm = ChatGroq(
 # from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.checkpoint.postgres import PostgresSaver
 
-checkpointer = PostgresSaver.from_conn_string(DATABASE_URL)
+# Create context manager
+_postgres_cm = PostgresSaver.from_conn_string(DATABASE_URL)
 
-# Create required tables if they don't exist
+# Enter context manager to get real saver
+checkpointer = _postgres_cm.__enter__()
+
+# Now this is a real saver instance
 checkpointer.setup()
 # ---------------- POSTGRES CONNECTION (AUTH + THREADS) ----------------
 pg_conn = psycopg.connect(DATABASE_URL)
