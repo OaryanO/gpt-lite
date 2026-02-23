@@ -324,14 +324,16 @@ from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
 from langchain_core.messages import BaseMessage
 from langchain_groq import ChatGroq
-# from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
 import bcrypt
 import jwt
 import datetime
 import os
-import psycopg2
+import psycopg
+
+
 
 # ---------------- ENV ----------------
 load_dotenv()
@@ -354,13 +356,10 @@ llm = ChatGroq(
 # ---------------- LANGGRAPH POSTGRES CHECKPOINTER ----------------
 # IMPORTANT: Correct initialization for latest LangGraph versions
 # from langgraph.checkpoint.postgres import PostgresSaver
-
-from langgraph.checkpoint.postgres import PostgresSaver
-
 _postgres_cm = PostgresSaver.from_conn_string(DATABASE_URL)
 checkpointer = _postgres_cm.__enter__()
 # ---------------- POSTGRES CONNECTION (AUTH + THREADS) ----------------
-pg_conn = psycopg2.connect(DATABASE_URL)
+pg_conn = psycopg.connect(DATABASE_URL)
 pg_cursor = pg_conn.cursor()
 
 pg_cursor.execute("""
