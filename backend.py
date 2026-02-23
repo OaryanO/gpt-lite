@@ -356,6 +356,9 @@ llm = ChatGroq(
 # ---------------- LANGGRAPH POSTGRES CHECKPOINTER ----------------
 # IMPORTANT: Correct initialization for latest LangGraph versions
 # from langgraph.checkpoint.postgres import PostgresSaver
+import os
+os.environ["PGOPTIONS"] = "-c prepare_threshold=0"
+
 from langgraph.checkpoint.postgres import PostgresSaver
 
 # # Create context manager
@@ -371,8 +374,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 # from langgraph.checkpoint.postgres import PostgresSaver
 
 _postgres_cm = PostgresSaver.from_conn_string(
-    DATABASE_URL,
-    prepare_threshold=0
+    DATABASE_URL
 )
 checkpointer = _postgres_cm.__enter__()
 checkpointer.setup()
@@ -380,8 +382,7 @@ checkpointer.setup()
 # pg_conn = psycopg.connect(DATABASE_URL)
 # pg_cursor = pg_conn.cursor()
 pg_conn = psycopg.connect(
-    DATABASE_URL,
-    prepare_threshold=0  # disable server-side prepared statements
+    DATABASE_URL # disable server-side prepared statements
 )
 pg_cursor = pg_conn.cursor()
 
