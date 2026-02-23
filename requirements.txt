@@ -1,9 +1,9 @@
 streamlit
-langgraph
-langgraph-checkpoint-postgres
 langchain-core
 langchain-groq
 psycopg[binary]
 python-dotenv
 bcrypt
 pyjwt
+langgraph==0.2.18
+langgraph-checkpoint-postgres==0.0.7
