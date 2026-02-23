@@ -333,7 +333,7 @@ import datetime
 import os
 import psycopg2
 
-# ---------------- ENV LOAD ----------------
+# ---------------- ENV ----------------
 load_dotenv()
 
 SECRET_KEY = os.getenv("JWT_SECRET")
@@ -351,15 +351,15 @@ llm = ChatGroq(
     temperature=0
 )
 
-# ---------------- LANGGRAPH CHECKPOINTER (POSTGRES) ----------------
-# This stores conversation memory persistently in Supabase
+# ---------------- LANGGRAPH POSTGRES CHECKPOINTER ----------------
+# IMPORTANT: Correct initialization for latest LangGraph versions
 checkpointer = PostgresSaver.from_conn_string(DATABASE_URL)
+checkpointer.setup()  # creates checkpoint tables if not exist
 
-# ---------------- DATABASE CONNECTION ----------------
+# ---------------- POSTGRES CONNECTION (AUTH + THREADS) ----------------
 pg_conn = psycopg2.connect(DATABASE_URL)
 pg_cursor = pg_conn.cursor()
 
-# Create tables if not exist
 pg_cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
@@ -410,7 +410,7 @@ def verify_token(token: str):
     except Exception:
         return None
 
-# ---------------- AUTH FUNCTIONS ----------------
+# ---------------- AUTH ----------------
 def register_user(username: str, password: str, security_answer: str):
     try:
         hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
