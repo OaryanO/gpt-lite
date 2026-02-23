@@ -358,16 +358,31 @@ llm = ChatGroq(
 # from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.checkpoint.postgres import PostgresSaver
 
-# Create context manager
-_postgres_cm = PostgresSaver.from_conn_string(DATABASE_URL)
+# # Create context manager
+# _postgres_cm = PostgresSaver.from_conn_string(DATABASE_URL)
 
-# Enter context manager to get real saver
+# # Enter context manager to get real saver
+# checkpointer = _postgres_cm.__enter__()
+
+# # Now this is a real saver instance
+# checkpointer.setup()
+
+
+# from langgraph.checkpoint.postgres import PostgresSaver
+
+_postgres_cm = PostgresSaver.from_conn_string(
+    DATABASE_URL,
+    prepare_threshold=0
+)
 checkpointer = _postgres_cm.__enter__()
-
-# Now this is a real saver instance
 checkpointer.setup()
 # ---------------- POSTGRES CONNECTION (AUTH + THREADS) ----------------
-pg_conn = psycopg.connect(DATABASE_URL)
+# pg_conn = psycopg.connect(DATABASE_URL)
+# pg_cursor = pg_conn.cursor()
+pg_conn = psycopg.connect(
+    DATABASE_URL,
+    prepare_threshold=0  # disable server-side prepared statements
+)
 pg_cursor = pg_conn.cursor()
 
 pg_cursor.execute("""
