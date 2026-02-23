@@ -3,7 +3,7 @@ langgraph
 langgraph-checkpoint-postgres
 langchain-core
 langchain-groq
-psycopg2-binary
+psycopg[binary]
 python-dotenv
 bcrypt
 pyjwt
